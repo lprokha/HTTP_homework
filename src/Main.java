@@ -102,7 +102,6 @@ public class Main {
             exchange.getResponseHeaders()
                     .add("Content-Type", getContentType(path));
 
-
             exchange.sendResponseHeaders(200, data.length);
 
             try (OutputStream out = exchange.getResponseBody()) {
@@ -119,6 +118,17 @@ public class Main {
             reqPath = "/index.html";
         }
         return reqPath;
+    }
+
+    private static String getContentType(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+
+        if (name.endsWith(".html")) {
+            return "text/html; charset=utf-8";
+        } else if (name.endsWith(".css")) {
+            return "text/css; charset=utf-8";
+        }
+        return "text/plain; charset=utf-8";
     }
 
     private static PrintWriter getWriterFrom(HttpExchange exchange) {
