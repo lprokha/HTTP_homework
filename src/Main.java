@@ -10,6 +10,8 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class Main {
     public static void main(String[] args) {
@@ -33,7 +35,7 @@ public class Main {
     }
 
     private static void initRoutes(HttpServer server) {
-        server.createContext("/", Main::handleRoot);
+        server.createContext("/", Main::handleCommon);
         server.createContext("/apps/", Main::handleApp);
         server.createContext("/apps/profile", Main::handleProfile);
     }
@@ -70,30 +72,53 @@ public class Main {
         }
     }
 
-    private static void handleRoot(HttpExchange exchange) {
+    private static void handleCommon(HttpExchange exchange) {
         try {
+            String reqPath = getRequestPath(exchange);
+            String reqPathWithoutSlash;
+
+            if (reqPath.startsWith("/")) {
+                reqPathWithoutSlash = reqPath.substring(1);
+            } else {
+                reqPathWithoutSlash = reqPath;
+            }
+
+            Path path = Path.of("web", reqPathWithoutSlash);
+
+            if (!Files.exists(path) || Files.isDirectory(path)) {
+                exchange.getResponseHeaders()
+                        .add("Content-Type", "text/plain; charset=utf-8");
+
+                exchange.sendResponseHeaders(404, 0);
+
+                try (PrintWriter writer = getWriterFrom(exchange)) {
+                    writer.println("Документ не найден");
+                }
+                return;
+            }
+
+            byte[] data = Files.readAllBytes(path);
+
             exchange.getResponseHeaders()
-                    .add("Content-Type", "text/plain; charset=utf-8");
-            int responseCode = 200;
-            int responseLength = 0;
+                    .add("Content-Type", getContentType(path));
 
-            exchange.sendResponseHeaders(responseCode, responseLength);
 
-            try(PrintWriter writer = getWriterFrom(exchange)) {
-                String method = exchange.getRequestMethod();
-                URI uri = exchange.getRequestURI();
-                String route = exchange.getHttpContext().getPath();
+            exchange.sendResponseHeaders(200, data.length);
 
-                write(writer, "Страница: ", "Главная");
-                write(writer, "HTTP метод", method);
-                write(writer, "Запрос", uri.toString());
-                write(writer, "Обработан через ", route);
-                writeHeaders(writer, "Заголовки запроса ", exchange.getRequestHeaders());
-                writer.flush();
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(data);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static String getRequestPath(HttpExchange exchange) {
+        String reqPath = exchange.getRequestURI().getPath();
+        if (reqPath == null || reqPath.isBlank() || reqPath.equals("/")) {
+            reqPath = "/index.html";
+        }
+        return reqPath;
     }
 
     private static PrintWriter getWriterFrom(HttpExchange exchange) {
