@@ -126,7 +126,11 @@ public class Main {
         if (name.endsWith(".html")) {
             return "text/html; charset=utf-8";
         } else if (name.endsWith(".css")) {
-            return "text/css; charset=utf-8";
+            return  "text/css; charset=utf-8";
+        } else if (name.endsWith(".png")) {
+            return  "image/png";
+        } else if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+            return "image/jpeg";
         }
         return "text/plain; charset=utf-8";
     }
